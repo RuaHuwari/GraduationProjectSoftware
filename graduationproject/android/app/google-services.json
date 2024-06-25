@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "107720447480",
+    "project_id": "palease",
+    "storage_bucket": "palease.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:107720447480:android:2a90fab17977970558f20d",
+        "android_client_info": {
+          "package_name": "com.example.graduationproject"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCodwGR6bFCVwO4OSTCAPmtDMP4E0JT-uk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

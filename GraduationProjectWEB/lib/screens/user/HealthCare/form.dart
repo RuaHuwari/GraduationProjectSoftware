@@ -1,0 +1,422 @@
+import 'dart:convert';
+import 'dart:html';
+import 'dart:typed_data';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
+import 'package:graduationprojectweb/Constans/API.dart';
+import 'package:graduationprojectweb/Constans/colors.dart';
+import 'package:graduationprojectweb/resources/save_data.dart';
+import 'package:graduationprojectweb/screens/profile/Components/pickimage.dart';
+import 'package:graduationprojectweb/screens/profile/profile.dart';
+import 'package:graduationprojectweb/screens/user/Application/Application.dart';
+import 'package:graduationprojectweb/screens/user/HealthCare/HealthCare.dart';
+import 'package:graduationprojectweb/screens/user/HomeScreen.dart';
+import 'package:graduationprojectweb/screens/user/Search.dart';
+import 'package:graduationprojectweb/screens/user/payement.dart';
+import 'package:graduationprojectweb/widgets/AppBar.dart';
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+
+class SpecialNeedsForm extends StatefulWidget {
+  SpecialNeedsForm({required this.userId, required this.firstname, required this.lastname, required this.id, required this.isEnglish});
+  final String userId;
+  final String firstname;
+  final String lastname;
+  final String id;
+  final bool isEnglish;
+
+  @override
+  _SpecialNeedsFormState createState() => _SpecialNeedsFormState();
+}
+
+class _SpecialNeedsFormState extends State<SpecialNeedsForm> {
+  bool isEnglish = true;
+
+  void _toggleLanguage() {
+    setState(() {
+      isEnglish = !isEnglish;
+    });
+  }
+
+  List<dynamic> centersData = [];
+  StoreData storeData = new StoreData();
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  TextEditingController firstNameController = TextEditingController();
+  TextEditingController secondNameController = TextEditingController();
+  TextEditingController lastNameController = TextEditingController();
+  TextEditingController idController = TextEditingController();
+  DateTime? _selectedDate;
+  int application_ID = 0;
+  TextEditingController statusController = TextEditingController();
+  int applicationID = 0;
+  Uint8List? _image;
+
+  Future<int> fetchData() async {
+    try {
+      String uri = "http://$IP/palease_api/allapplication.php";
+      var response = await http.post(
+        Uri.parse(uri),
+        body: {},
+      );
+      if (response.statusCode == 200) {
+        var jsonData = jsonDecode(response.body);
+        if (jsonData['success']) {
+          return applicationID = jsonData['max_id'];
+        } else {
+          return jsonData['error'];
+        }
+      } else {
+        return 0;
+      }
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  Future<int> fetchapplicationID() async {
+    try {
+      String uri = "http://$IP/palease_api/getapplicationid.php";
+      var response = await http.post(
+        Uri.parse(uri),
+        body: {
+          'department_id': widget.id
+        },
+      );
+      if (response.statusCode == 200) {
+        var jsonData = jsonDecode(response.body);
+        if (jsonData['success']) {
+          return application_ID = jsonData['id'];
+        } else {
+          return jsonData['error'];
+        }
+      } else {
+        return 0;
+      }
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  Future<void> _getImage() async {
+    Uint8List img = await pickImage(ImageSource.gallery);
+    setState(() {
+      _image = img;
+    });
+  }
+
+  Future<void> _saveData(
+      String ID,
+      String dob,
+      String name,
+      String status,
+      int applicationid
+      ) async {
+    if (name == "") {
+      print("please fill in all field");
+    } else {
+      try {
+        // Format the dob parameter as a string
+        String formattedDOB = dob; // Or any other desired format
+        print(applicationid.toString());
+        print(widget.userId);
+        String departmentid = widget.id;
+        // Send POST request to the server
+        String uri = "http://$IP/palease_api/insert_application.php";
+        var response = await http.post(Uri.parse(uri), body: {
+          "id": ID,
+          "applicationid": applicationid.toString(),
+          "departmentid": departmentid,
+          "user_id": widget.userId,
+          "applicantID": idController.text,
+          "dob": formattedDOB,
+          "name": name,
+          "status": "Not Done",
+
+          "created_at": DateTime.now().toString(),
+          "updated_at": DateTime.now().toString()
+        },
+        );
+
+        // Check if the request was successful (status code 200)
+        if (response.statusCode == 200) {
+          // Extract the response body
+          var responseBody = jsonDecode(response.body);
+
+          // Extract the autogenerated ID from the response
+
+          // Show success message to the user
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(isEnglish ? 'Application submitted successfully!' : 'تم تقديم الطلب بنجاح!'),
+            ),
+          );
+
+          // Reset the form or navigate to another screen
+          setState(() {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => homescreen(userId: widget.userId, firstname: widget.firstname, lastname: widget.lastname, isEnglish: isEnglish,)),
+            );
+          });
+        } else {
+          // Show error message to the user
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(isEnglish ? 'Failed to submit application. Please try again.' : 'فشل في تقديم الطلب. حاول مرة أخرى.'),
+            ),
+          );
+        }
+      } catch (e) {
+        // Handle any exceptions or errors
+        print('Error: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isEnglish ? 'Error occurred while submitting application.' : 'حدث خطأ أثناء تقديم الطلب.'),
+          ),
+        );
+      }
+    }
+  }
+
+  void showMessageDialog(BuildContext context, String text, String text2) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(text, style: TextStyle(color: primary, fontWeight: FontWeight.bold)),
+          content: Text(text2),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                // Close the dialog
+                Navigator.of(context).pop();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => homescreen(
+                          userId: widget.userId,
+                          firstname: widget.firstname,
+                          lastname: widget.lastname, isEnglish: isEnglish,)),
+                );
+              },
+              child: Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<String> _saveApplicationIdToFirestore(String applicationId, int applicationid) async {
+    String resp = "error occurred";
+    try {
+      print('1');
+      String _imageurl = await storeData.UploadImageToStorage(applicationId + 'lastcheckup', _image!);
+      print('2');
+      // Check if there are existing images with the same ID
+      final QuerySnapshot querySnapshot = await _firestore
+          .collection("IDApplication")
+          .where('id', isEqualTo: applicationId)
+          .where('user_id', isEqualTo: widget.userId)
+          .where('department_id', isEqualTo: widget.id)
+          .where('ApplicantID', isEqualTo: idController.text)
+          .where('applicationID', isEqualTo: applicationid.toString())
+          .get();
+
+      // If there are existing images, delete them
+      for (DocumentSnapshot doc in querySnapshot.docs) {
+        await doc.reference.delete();
+      }
+      print(applicationid.toString());
+      await _firestore.collection("IDApplications").add({
+        'id': applicationId,
+        'applicationID': applicationid.toString(),
+        'departmentID': widget.id,
+        'user_id': widget.userId,
+        'FirstName': firstNameController.text,
+        'SecondName': secondNameController.text,
+        'LastName': lastNameController.text,
+        'ApplicantID': idController.text,
+        'Status Description':statusController.text,
+        'DateOfBirth': _selectedDate.toString(),
+        'LastCheckUp': _imageurl,
+      });
+
+      resp = 'success';
+    } catch (e) {
+      resp = e.toString();
+      print(e.toString());
+    }
+    print(resp);
+    return resp;
+    return '';
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+    if (pickedDate != null && pickedDate != _selectedDate) {
+      setState(() {
+        _selectedDate = pickedDate;
+      });
+    }
+  }
+
+  void _submitForm() {
+    if (_formKey.currentState!.validate()) {
+
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    isEnglish=widget.isEnglish;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: buildabbbar.buildAbbbar(
+        context,
+        isEnglish ? 'Form for Special Needs Center' : 'نموذج لمركز ذوي الاحتياجات الخاصة',
+        widget.userId,
+        widget.firstname,
+        widget.lastname,
+        isEnglish,
+        _toggleLanguage,
+      ),
+      body: Stack(
+        children: [
+          Container(
+            height: MediaQuery.of(context).size.height,
+            width: MediaQuery.of(context).size.width,
+            decoration: const BoxDecoration(
+              color: Colors.purple,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 30, left: 80.0, right: 80),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                color: Colors.white,
+              ),
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  padding: EdgeInsets.all(16.0),
+                  children: [
+                    TextFormField(
+                      controller: firstNameController,
+                      decoration: InputDecoration(labelText: isEnglish ? 'First Name' : 'الاسم الأول'),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return isEnglish ? 'Please enter first name' : 'يرجى إدخال الاسم الأول';
+                        }
+                        return null;
+                      },
+                    ),
+                    TextFormField(
+                      controller: secondNameController,
+                      decoration: InputDecoration(labelText: isEnglish ? 'Second Name' : 'الاسم الثاني'),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return isEnglish ? 'Please enter second name' : 'يرجى إدخال الاسم الثاني';
+                        }
+                        return null;
+                      },
+                    ),
+                    TextFormField(
+                      controller: lastNameController,
+                      decoration: InputDecoration(labelText: isEnglish ? 'Last Name' : 'الكنية'),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return isEnglish ? 'Please enter last name' : 'يرجى إدخال الكنية';
+                        }
+                        return null;
+                      },
+                    ),
+                    TextFormField(
+                      controller: idController,
+                      decoration: InputDecoration(labelText: isEnglish ? 'ID' : 'الهوية'),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return isEnglish ? 'Please enter ID' : 'يرجى إدخال الهوية';
+                        }
+                        return null;
+                      },
+                    ),
+                    ListTile(
+                      title: Text(
+                        _selectedDate == null
+                            ? (isEnglish ? 'Date of Birth' : 'تاريخ الميلاد')
+                            : (isEnglish ? 'Date of Birth: ' : 'تاريخ الميلاد: ') + '${_selectedDate!.toLocal().year} - ${_selectedDate!.toLocal().month} - ${_selectedDate!.toLocal().day}',
+                        style: TextStyle(color: primary),
+                      ),
+                      trailing: Icon(Icons.calendar_today),
+                      onTap: () {
+                        _selectDate(context);
+                      },
+                    ),
+                    TextFormField(
+                      controller: statusController,
+                      decoration: InputDecoration(labelText: isEnglish ? 'Status Description' : 'وصف الحالة'),
+                      maxLines: null,
+                    ),
+                    SizedBox(height: 20),
+                    _image != null
+                        ? Image.memory(
+                      _image!,
+                      height: 200,
+                    )
+                        : Container(),
+                    ElevatedButton(
+                      onPressed: () {
+                        _getImage();
+                      },
+                      child: Text(isEnglish ? 'Select Image of the last check up for the patient' : 'حدد صورة الفحص الأخير للمريض'),
+                    ),
+                    SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: () async {
+                        applicationID = await fetchData();
+                        application_ID = await fetchapplicationID();
+
+                        print(applicationID);
+                        applicationID++;
+                        print(applicationID);
+                        _saveData(applicationID.toString(), _selectedDate.toString(),
+                            firstNameController.text, 'Not Done', application_ID);
+                        _saveApplicationIdToFirestore(applicationID.toString(), application_ID);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) =>
+                              pay(
+                                applicationID: applicationID.toString(),
+                                price: 24,
+                                firstname: widget.firstname,
+                                lastname: widget.lastname,
+                                userId: widget.userId, isEnglish: isEnglish,
+                              )),
+                        );
+                      },
+                      child: Text(isEnglish ? 'Submit' : 'إرسال'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+}

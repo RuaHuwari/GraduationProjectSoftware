@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stripe Payment</title>
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+<div id="payment-element"></div>
+<button id="pay-now-btn">PAY NOW</button>
+
+<script>
+    function getQueryParam(param) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(param);
+    }
+
+    const clientSecret = getQueryParam('clientSecret');
+    const stripe = Stripe("pk_test_51POdSTP53P5Ck9Xo5EyfpHkcQjTtL4AK02eHOEHxFeRac95yqv7tC9lHasJKECuk65ut5DYfGCubaGtGIX6KoZIt00FOJyJdhl");
+
+    const elements = stripe.elements({
+      clientSecret: clientSecret,
+    });
+
+    const paymentElement = elements.create("payment");
+    paymentElement.mount("#payment-element");
+
+    document
+      .getElementById("pay-now-btn")
+      .addEventListener("click", async () => {
+        console.log("Button clicked");
+
+        await stripe
+          .confirmPayment({
+            elements,
+            confirmParams: {
+
+            },
+          })
+          .then((data) => {
+            console.log("Payment confirmed:", data);
+          })
+          .catch((err) => {
+            console.log("Payment error:", err);
+          });
+      });
+
+    console.log("Elements:", elements);
+</script>
+</body>
+</html>
